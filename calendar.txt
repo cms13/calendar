@@ -1,0 +1,125 @@
+Sub FillCalendar()
+    Dim ws As Worksheet
+    Dim rng As Range
+    Dim cell As Range
+    Dim people As Variant
+    Dim assigned As Collection
+    Dim day As String
+    Dim dateCell As Range
+    Dim person As Variant
+    Dim i As Integer
+    Dim j As Integer
+    Dim randIndex As Integer
+    Dim locs As Variant
+    Dim availablePeople As Collection
+    Dim calendarArray() As Variant
+    Dim rowCount As Long
+    Dim colCount As Long
+    Dim vacPeople() As String
+    Dim adminPeopleArr() As String
+    
+    Set ws = ThisWorkbook.Sheets("Calendar")
+    Set rng = ws.Range("A2:A" & ws.Cells(ws.Rows.Count, "A").End(xlUp).Row)
+    people = Array("MAD", "RCR", "BJW", "RRS", "IS", "CMS", "ARB", "ODS", "DCW", "SIC", "SVF")
+    locs = Array("P1", "THFM", "THF", "THA", "BMCF", "P2", "P3", "P4", "P5", "P6", "P7")
+    
+    rowCount = rng.Rows.Count
+    colCount = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    ReDim calendarArray(1 To rowCount, 1 To colCount)
+    
+    ' Read the calendar into an array
+    For i = 1 To rowCount
+        For j = 1 To colCount
+            calendarArray(i, j) = ws.Cells(i + 1, j).Value
+        Next j
+    Next i
+    
+    ' Assign people to locations
+    For i = 1 To rowCount
+        day = calendarArray(i, 1)
+        
+        If day <> "Saturday" And day <> "Sunday" Then
+            Set availablePeople = New Collection
+            For Each person In people
+                If Not IsInArray(calendarArray, CStr(person), i) Then
+                    availablePeople.Add person
+                End If
+            Next person
+            
+            ' Assign to locations from left to right
+            For j = 5 To 15
+                If IsEmpty(calendarArray(i, j)) Then
+                    If availablePeople.Count > 0 Then
+                        randIndex = Int((availablePeople.Count) * Rnd + 1)
+                        person = availablePeople(randIndex)
+                        
+                        calendarArray(i, j) = person
+                        availablePeople.Remove randIndex
+                    Else
+                        Exit For
+                    End If
+                End If
+            Next j
+            
+            ' Assign admin days if not already assigned
+            If IsEmpty(calendarArray(i, 4)) Then
+                If availablePeople.Count > 0 Then
+                    randIndex = Int((availablePeople.Count) * Rnd + 1)
+                    person = availablePeople(randIndex)
+                    
+                    calendarArray(i, 4) = person
+                    availablePeople.Remove randIndex
+                End If
+            End If
+        End If
+    Next i
+    
+    ' Write the array back to the worksheet
+    For i = 1 To rowCount
+        For j = 1 To colCount
+            ws.Cells(i + 1, j).Value = calendarArray(i, j)
+        Next j
+    Next i
+End Sub
+
+Function IsInArray(ByVal arr As Variant, ByVal val As String, ByVal row As Long) As Boolean
+    Dim col As Long
+    Dim vacPeople() As String
+    Dim adminPeopleArr() As String
+    
+    ' Check vacation column
+    If Not IsEmpty(arr(row, 3)) Then
+        vacPeople = Split(arr(row, 3), "/")
+        For Each person In vacPeople
+            If person = val Then
+                IsInArray = True
+                Exit Function
+            End If
+        Next person
+    End If
+    
+    ' Check admin column
+    If Not IsEmpty(arr(row, 4)) Then
+        adminPeopleArr = Split(arr(row, 4), "/")
+        For Each person In adminPeopleArr
+            If person = val Then
+                IsInArray = True
+                Exit Function
+            End If
+        Next person
+    End If
+    
+    ' Check location columns
+    For col = 5 To UBound(arr, 2)
+        If arr(row, col) = val Then
+            IsInArray = True
+            Exit Function
+        End If
+    Next col
+    
+    IsInArray = False
+End Function
+
+Function IsEmpty(val As Variant) As Boolean
+    IsEmpty = (val = "")
+End Function
